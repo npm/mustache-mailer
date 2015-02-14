@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/npm/mustache-mailer.png)](https://travis-ci.org/npm/mustache-mailer)
 [![Coverage Status](https://coveralls.io/repos/npm/mustache-mailer/badge.svg?branch=)](https://coveralls.io/r/npm/mustache-mailer?branch=)
 
-A mustache-templated-backed mailer. Built with [handlebars](https://www.npmjs.com/package/handlebars#readme),
+A mustache-template-backed mailer. Built with [handlebars](https://www.npmjs.com/package/handlebars#readme),
 and [nodemailer](https://www.npmjs.com/package/nodemailer), inspired by ActionMailer.
 
 # Usage
