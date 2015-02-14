@@ -4,7 +4,7 @@ var argv = require('yargs')
   .usage('$0 [options]')
   .option('o', {
     alias: 'transport-options',
-    description: "options for transport, seperated by '.'s, e.g., o.accessKeyId"
+    description: "options for transport, separated by '.'s, e.g., o.accessKeyId"
   })
   .option('t', {
     demand: true,
