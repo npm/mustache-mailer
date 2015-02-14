@@ -32,7 +32,7 @@ function MustacheMailer(opts) {
     nodemailer: {}, // node-mailer initialization options.
     transport: null, // the transport method, e.g., SES.
     templateDir: './templates',
-    templateCache: {}
+    cache: {}
   }, opts);
 
   this.transporter = nodemailer.createTransport(this.transport);
@@ -44,25 +44,31 @@ MustacheMailer.prototype.message = function(name, cb) {
     htmlPath,
     textPath;
 
-  return this._templateList()
-    .then(function(files) {
-      htmlPath = _this._resolveTemplateFile(name + '.html.mustache', files);
-      textPath = _this._resolveTemplateFile(name + '.text.mustache', files);
+  if (_this.cache[name]) {
+    return Promise.cast(_this.cache[name])
+      .nodeify(cb);
+  } else {
+    return this._templateList()
+      .then(function(files) {
+        htmlPath = _this._resolveTemplateFile(name + '.html.mustache', files);
+        textPath = _this._resolveTemplateFile(name + '.text.mustache', files);
 
-      if (textPath) return _this._loadTemplate(textPath);
-    })
-    .then(function(textTemplate) {
-      if (textTemplate) templates.text = textTemplate;
-      if (htmlPath) return _this._loadTemplate(htmlPath);
-    })
-    .then(function(htmlTemplate) {
-      if (htmlTemplate) templates.html = htmlTemplate;
-    })
-    .then(function() {
-      _this.templateCache[name] = templates;
-      return new Message(_this.transporter, templates);
-    })
-    .nodeify(cb);
+        if (textPath) return _this._loadTemplate(textPath);
+      })
+      .then(function(textTemplate) {
+        if (textTemplate) templates.text = textTemplate;
+        if (htmlPath) return _this._loadTemplate(htmlPath);
+      })
+      .then(function(htmlTemplate) {
+        if (htmlTemplate) templates.html = htmlTemplate;
+      })
+      .then(function() {
+        var message = new Message(_this.transporter, templates);
+        _this.cache[name] = message;
+        return message;
+      })
+      .nodeify(cb);
+  }
 };
 
 MustacheMailer.prototype._resolveTemplateFile = function(name, files) {

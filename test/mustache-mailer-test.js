@@ -7,9 +7,14 @@ var chai = require('chai').should(),
 describe('MustacheMailer', function() {
 
   describe('message', function() {
-    var mm = new MustacheMailer({
-      transport: {},
-      templateDir: path.resolve(__dirname, './fixtures')
+    var mm = null;
+
+    beforeEach(function(done) {
+      mm = new MustacheMailer({
+        transport: {},
+        templateDir: path.resolve(__dirname, './fixtures')
+      });
+      return done();
     });
 
     it("returns message with 'text' contents populated, if text template is found", function(done) {
@@ -35,6 +40,33 @@ describe('MustacheMailer', function() {
     });
   });
 
+  describe('cache', function() {
+    var mm = null;
+
+    beforeEach(function(done) {
+      mm = new MustacheMailer({
+        transport: {},
+        templateDir: path.resolve(__dirname, './fixtures')
+      });
+      return done();
+    });
+
+    it('should place templates in the cache the first time they are used', function(done) {
+      mm.message('foo', function(err, msg) {
+        (typeof mm.cache.foo).should.equal('object');
+        return done();
+      });
+    });
+
+    it('should serve template from cache if entry already exists', function(done) {
+      mm.cache.blarg = 'cached message';
+      mm.message('blarg', function(err, msg) {
+        msg.should.equal('cached message');
+        return done();
+      });
+    });
+  });
+
   describe('message.sendMail()', function() {
     it('expands templates with data, and includes them in sent message', function(done) {
       var mock = MockTransport();
@@ -45,6 +77,32 @@ describe('MustacheMailer', function() {
       });
 
       mm.message('foo')
+        .then(function(msg) {
+          msg.sendMail({
+            to: 'zeke@example.com',
+            fname: 'Zeke'
+          });
+          mock.sentMail.length.should.equal(1);
+          mock.sentMail[0].data.to.should.eql('zeke@example.com');
+          mock.sentMail[0].data.html.should.match(/Hello Zeke great to meet you.<br\/>/);
+          mock.sentMail[0].data.text.should.match(/Hello Zeke great to meet you.\n/);
+          return done();
+        });
+    });
+
+    it('handles sending message from cache', function(done) {
+      var mock = MockTransport();
+
+      var mm = new MustacheMailer({
+        transport: mock,
+        templateDir: path.resolve(__dirname, './fixtures')
+      });
+
+      mm.message('foo')
+        .then(function(msg) {
+          (typeof mm.cache.foo).should.equal('object');
+          return mm.message('foo')
+        })
         .then(function(msg) {
           msg.sendMail({
             to: 'zeke@example.com',
