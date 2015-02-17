@@ -50,8 +50,8 @@ MustacheMailer.prototype.message = function(name, cb) {
   } else {
     return this._templateList()
       .then(function(files) {
-        htmlPath = _this._resolveTemplateFile(name + '.html.mustache', files);
-        textPath = _this._resolveTemplateFile(name + '.text.mustache', files);
+        htmlPath = _this._resolveTemplateFile(name + '.html.hbs', files);
+        textPath = _this._resolveTemplateFile(name + '.text.hbs', files);
 
         if (textPath) return _this._loadTemplate(textPath);
       })
@@ -94,7 +94,7 @@ MustacheMailer.prototype._templateList = function() {
       if (err) reject(err);
       else resolve(
         _.filter(files, function(f) {
-          return f.match(/\.mustache$/);
+          return f.match(/\.hbs$/);
         })
       );
     });

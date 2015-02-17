@@ -9,8 +9,8 @@ and [nodemailer](https://www.npmjs.com/package/nodemailer), inspired by ActionMa
 # Usage
 
 1. create a templates directory with the following naming convention:
-  * `foo.text.mustache`, for text email templates.
-  * `foo.html.mustache`, for html email templates.
+  * `foo.text.hbs`, for text email templates.
+  * `foo.html.hbs`, for html email templates.
 
 2. instantiate `MustacheMailer` with:
   * `transport`: the transport module you wish to use, e.g., SES.
@@ -27,7 +27,7 @@ var mm = new MustacheMailer({
 ```
 
 3. use the `MessageMailer` instance to grab a template:
-  * if it sees an `html`, and a `text` template both will be sent.
+  * if it sees an `html` template and a `text` template, both will be sent.
   * any variable passed to `sendMail` are sent to `nodemailer`, and
     to the mustache templates.
 
