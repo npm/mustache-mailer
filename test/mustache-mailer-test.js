@@ -217,6 +217,7 @@ describe('MustacheMailer', function() {
             email: 'zeke@example.com'
           }, function(err, data) {
             mock.sentMail[0].data.text.should.match(/http:\/\/example.com\/[0-9]{1,3}/);
+            mock.sentMail[0].data.text.should.not.match(/one week/);
             return done();
           });
         });
