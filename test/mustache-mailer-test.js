@@ -197,10 +197,12 @@ describe('MustacheMailer', function() {
         templateDir: path.resolve(__dirname, './fixtures'),
         // a fake token facilitator.
         tokenFacilitator: {
-          generate: function(data, cb) {
+          generate: function(data, opts, cb) {
             setTimeout(function() {
               data.email.should.eql('zeke@example.com');
               data.name.should.eql('Zeke');
+              opts.ttl.should.eql(680400000);
+              opts.prefix.should.eql('email_confirm_');
               return cb(null, parseInt(Math.random() * 256));
             }, 20);
           }
@@ -215,6 +217,7 @@ describe('MustacheMailer', function() {
             email: 'zeke@example.com'
           }, function(err, data) {
             mock.sentMail[0].data.text.should.match(/http:\/\/example.com\/[0-9]{1,3}/);
+            mock.sentMail[0].data.text.should.not.match(/one week/);
             return done();
           });
         });

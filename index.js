@@ -71,10 +71,14 @@ function MustacheMailer(opts) {
   if (this.tokenFacilitator) {
     Handlebars.registerHelper('tokenHelper', function(data) {
       var done = this.async();
-      _this.tokenFacilitator.generate(data.hash, function(err, token) {
-        if (err) return done(err);
-        else return done(null, token);
-      });
+      _this.tokenFacilitator.generate(
+        _.omit(data.hash, ['prefix', 'ttl']),
+        _.pick(data.hash, ['prefix', 'ttl']),
+        function(err, token) {
+          if (err) return done(err);
+          else return done(null, token);
+        }
+      );
     });
   }
 }
