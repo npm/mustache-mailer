@@ -197,10 +197,12 @@ describe('MustacheMailer', function() {
         templateDir: path.resolve(__dirname, './fixtures'),
         // a fake token facilitator.
         tokenFacilitator: {
-          generate: function(data, cb) {
+          generate: function(data, opts, cb) {
             setTimeout(function() {
               data.email.should.eql('zeke@example.com');
               data.name.should.eql('Zeke');
+              opts.ttl.should.eql(680400000);
+              opts.prefix.should.eql('email_confirm_');
               return cb(null, parseInt(Math.random() * 256));
             }, 20);
           }
