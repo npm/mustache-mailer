@@ -10,6 +10,7 @@ and [nodemailer](https://www.npmjs.com/package/nodemailer), inspired by ActionMa
 
 1. create a templates directory with the following naming convention:
   * `foo.text.hbs`, for text email templates.
+  * `foo.meta.hbs`, meta information in JSON format, e.g., `subject`.
   * `foo.html.hbs`, for html email templates.
 
 2. instantiate `MustacheMailer` with:
@@ -32,9 +33,46 @@ var mm = new MustacheMailer({
     to the mustache templates.
 
 ```js
-var msg = mm.message('confirmation').sendMail({
-  to: 'bencoe@gmail.com',
-  name: 'Ben',
-  id: 'adfasdfadsfasdf'
+var msg = mm.message('confirmation', function(err, msg) {
+  msg.sendMail({
+    to: 'bencoe@gmail.com',
+    name: 'Ben',
+    id: 'adfasdfadsfasdf'
+  });
+}
+```
+
+# `tokenFacilitator` Plugin
+
+It often arises that you'd like to toss a token inside an email, e.g.,
+click this confirmation link to change your password.
+
+For generating these tokens, MustacheMailer allows you to install a
+`tokenFacilitator` plugin:
+
+## When instantiating MustacheMailer:
+
+```js
+var mm = new MustacheMailer({
+  transport: mock,
+  templateDir: path.resolve(__dirname, './fixtures'),
+  // a fake token facilitator.
+  tokenFacilitator: {
+    generate: function(data, cb) {
+      setTimeout(function() {
+        data.email.should.eql('zeke@example.com');
+        data.name.should.eql('Zeke');
+        return cb(null, parseInt(Math.random() * 256));
+      }, 20);
+    }
+  }
 });
 ```
+
+# In the template
+
+```mustache
+http://example.com/{{{tokenHelper name=name email=email}}}
+```
+
+* the arguments will be stored as `key`, `value` pairs in data.

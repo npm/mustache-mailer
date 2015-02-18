@@ -19,8 +19,10 @@ describe('MustacheMailer', function() {
 
     it("returns message with 'text' contents populated, if text template is found", function(done) {
       mm.message('bar', function(err, msg) {
-        msg.templates.text().should.match(/glad to meet you.\n/);
-        return done();
+        msg.templates.text(function(err, data) {
+          data.should.match(/glad to meet you.\n/);
+          return done();
+        });
       });
     });
 
@@ -33,10 +35,39 @@ describe('MustacheMailer', function() {
 
     it("populates both 'html' and 'text' templates if both templates are found", function(done) {
       mm.message('foo', function(err, msg) {
-        msg.templates.text().should.match(/great to meet you.\n/);
-        msg.templates.html().should.match(/great to meet you.<br\/>/);
-        return done();
+        msg.templates.text(function(err, data) {
+          data.should.match(/great to meet you.\n/);
+
+          msg.templates.html(function(err, data) {
+            data.should.match(/great to meet you.<br\/>/);
+            return done();
+          });
+        });
       });
+    });
+  });
+
+  describe('meta', function() {
+    it('expands meta information template, and parses it as JSON', function(done) {
+      var mock = MockTransport();
+
+      var mm = new MustacheMailer({
+        transport: mock,
+        templateDir: path.resolve(__dirname, './fixtures')
+      });
+
+      mm.message('bar')
+        .then(function(msg) {
+          msg.sendMail({
+            to: 'zeke@example.com',
+            name: 'Zeke'
+          }, function(err) {
+            mock.sentMail.length.should.equal(1);
+            mock.sentMail[0].data.subject.should.eql('my awesome subject');
+            mock.sentMail[0].data.awesomeName.should.eql('Awesome Zeke');
+            return done();
+          });
+        });
     });
   });
 
@@ -81,12 +112,13 @@ describe('MustacheMailer', function() {
           msg.sendMail({
             to: 'zeke@example.com',
             fname: 'Zeke'
+          }, function(err) {
+            mock.sentMail.length.should.equal(1);
+            mock.sentMail[0].data.to.should.eql('zeke@example.com');
+            mock.sentMail[0].data.html.should.match(/Hello Zeke great to meet you.<br\/>/);
+            mock.sentMail[0].data.text.should.match(/Hello Zeke great to meet you.\n/);
+            return done();
           });
-          mock.sentMail.length.should.equal(1);
-          mock.sentMail[0].data.to.should.eql('zeke@example.com');
-          mock.sentMail[0].data.html.should.match(/Hello Zeke great to meet you.<br\/>/);
-          mock.sentMail[0].data.text.should.match(/Hello Zeke great to meet you.\n/);
-          return done();
         });
     });
 
@@ -107,12 +139,13 @@ describe('MustacheMailer', function() {
           msg.sendMail({
             to: 'zeke@example.com',
             fname: 'Zeke'
+          }, function() {
+            mock.sentMail.length.should.equal(1);
+            mock.sentMail[0].data.to.should.eql('zeke@example.com');
+            mock.sentMail[0].data.html.should.match(/Hello Zeke great to meet you.<br\/>/);
+            mock.sentMail[0].data.text.should.match(/Hello Zeke great to meet you.\n/);
+            return done();
           });
-          mock.sentMail.length.should.equal(1);
-          mock.sentMail[0].data.to.should.eql('zeke@example.com');
-          mock.sentMail[0].data.html.should.match(/Hello Zeke great to meet you.<br\/>/);
-          mock.sentMail[0].data.text.should.match(/Hello Zeke great to meet you.\n/);
-          return done();
         });
     });
 
@@ -136,4 +169,55 @@ describe('MustacheMailer', function() {
 
   });
 
+  describe('tokenHelper', function() {
+    it('if tokenFacilitator is not provided, templates still work', function(done) {
+      var mock = MockTransport();
+      var mm = new MustacheMailer({
+        transport: mock,
+        templateDir: path.resolve(__dirname, './fixtures')
+      });
+
+      mm.message('bar')
+        .then(function(msg) {
+          msg.sendMail({
+            to: 'zeke@example.com',
+            name: 'Zeke',
+            email: 'zeke@example.com'
+          }, function(err, data) {
+            mock.sentMail[0].data.text.should.match(/http:\/\/example.com\/\n/);
+            return done();
+          });
+        });
+    });
+
+    it('if tokenFacilitator is provided, templates have access to helper', function(done) {
+      var mock = MockTransport();
+      var mm = new MustacheMailer({
+        transport: mock,
+        templateDir: path.resolve(__dirname, './fixtures'),
+        // a fake token facilitator.
+        tokenFacilitator: {
+          generate: function(data, cb) {
+            setTimeout(function() {
+              data.email.should.eql('zeke@example.com');
+              data.name.should.eql('Zeke');
+              return cb(null, parseInt(Math.random() * 256));
+            }, 20);
+          }
+        }
+      });
+
+      mm.message('bar')
+        .then(function(msg) {
+          msg.sendMail({
+            to: 'zeke@example.com',
+            name: 'Zeke',
+            email: 'zeke@example.com'
+          }, function(err, data) {
+            mock.sentMail[0].data.text.should.match(/http:\/\/example.com\/[0-9]{1,3}/);
+            return done();
+          });
+        });
+    });
+  });
 });
