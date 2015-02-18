@@ -19,7 +19,7 @@ Message.prototype.sendMail = function(data, cb) {
   var _this = this,
     content = {};
 
-  this._expandTemplate(data, _this.templates.html)
+  return this._expandTemplate(data, _this.templates.html)
     .then(function(rendered) {
       if (rendered) content.html = rendered;
       return _this._expandTemplate(data, _this.templates.text)
