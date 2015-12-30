@@ -34,7 +34,13 @@ Message.prototype.sendMail = function(data, cb) {
     })
     .then(function(meta) {
       return new Promise(function(resolve, reject) {
-        _this.transporter.sendMail(_.extend({}, content, meta, data), function(err, info) {
+        // first copy content and override with data
+        var mail = _.extend({}, content, data);
+        // then override with meta if it has a truthy value
+        _.extend(mail, meta, function (mailValue, metaValue) {
+          return metaValue || mailValue;
+        });
+        _this.transporter.sendMail(mail, function(err, info) {
           if (err) reject(err);
           else resolve(info);
         });
