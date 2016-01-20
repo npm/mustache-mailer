@@ -60,11 +60,14 @@ describe('MustacheMailer', function() {
         .then(function(msg) {
           msg.sendMail({
             to: 'zeke@example.com',
-            name: 'Zeke'
+            name: 'Zeke',
+            from: 'me@me.co'
           }, function(err) {
             mock.sentMail.length.should.equal(1);
             mock.sentMail[0].data.subject.should.eql('my awesome subject');
             mock.sentMail[0].data.awesomeName.should.eql('Awesome Zeke');
+            mock.sentMail[0].data.to.should.eql('zeke@example.com');
+            mock.sentMail[0].data.from.should.eql('"Me, Inc." <me@me.co>');
             return done();
           });
         });
