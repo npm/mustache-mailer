@@ -1,6 +1,6 @@
 {
   "name": "mustache-mailer",
-  "version": "2.1.2",
+  "version": "3.0.0",
   "description": "send emails using nodemailer, and mustache templates.",
   "main": "index.js",
   "scripts": {
