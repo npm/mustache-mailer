@@ -64,14 +64,14 @@ describe('MustacheMailer', function() {
           msg.sendMail({
             to: 'dalek@example.com',
             name: 'dalek',
-            from: 'me@me.co'
+            from: 'doctor@gallifrey.co'
           }, function(err) {
             expect(err).to.not.exist;
             mock.sentMail.length.should.equal(1);
-            mock.sentMail[0].data.subject.should.eql('my awesome subject');
-            mock.sentMail[0].data.awesomeName.should.eql('Awesome dalek');
+            mock.sentMail[0].data.subject.should.eql('no extermination please');
+            mock.sentMail[0].data.awesomeName.should.eql('Chief dalek');
             mock.sentMail[0].data.to.should.eql('dalek@example.com');
-            mock.sentMail[0].data.from.should.eql('"Me, Inc." <me@me.co>');
+            mock.sentMail[0].data.from.should.eql('"Who, Indeed" <doctor@gallifrey.co>');
             return done();
           });
         });
