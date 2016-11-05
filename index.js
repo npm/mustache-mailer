@@ -36,10 +36,11 @@ Message.prototype.sendMail = function sendMail(data, callback) {
     content.html = rendered;
     var mail = Object.assign({}, content, data, meta);
 
-    var deferred = P.defer();
-    self.transporter.sendMail(mail, function(err, info) {
-      if (err) deferred.reject(err);
-      else deferred.resolve(info);
+    var deferred = new P(function(resolve, reject) {
+      self.transporter.sendMail(mail, function(err, info) {
+        if (err) reject(err);
+        else resolve(info);
+      });
     });
 
     return deferred.promise;
@@ -61,7 +62,7 @@ Message.prototype._expandTemplate = function(data, template) {
 function MustacheMailer(opts) {
   var _this = this;
 
-  _.extend(this, {
+  Object.assign(this, {
     nodemailer: {}, // node-mailer initialization options.
     transport: null, // the transport method, e.g., SES.
     templateDir: './templates',
@@ -78,10 +79,7 @@ function MustacheMailer(opts) {
       _this.tokenFacilitator.generate(
         _.omit(data.hash, ['prefix', 'ttl']),
         _.pick(data.hash, ['prefix', 'ttl']),
-        function(err, token) {
-          if (err) return done(err);
-          return done(null, token);
-        }
+        done
       );
     });
   }
