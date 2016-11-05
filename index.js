@@ -43,7 +43,7 @@ Message.prototype.sendMail = function sendMail(data, callback) {
       });
     });
 
-    return deferred.promise;
+    return deferred;
   })
   .nodeify(callback);
 }
