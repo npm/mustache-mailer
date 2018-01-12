@@ -7,7 +7,7 @@
     "mustache-mailer": "./bin/mustache-mailer.js"
   },
   "dependencies": {
-    "bluebird": "~3.4.6",
+    "bluebird": "^3.4.7",
     "handlebars": "~4.0.5",
     "handlebars-async": "0.0.3",
     "lodash": "~4.16.6",
@@ -20,7 +20,7 @@
     "coveralls": "~2.11.14",
     "mocha": "~3.1.2",
     "nodemailer-mock-transport": "^1.0.0",
-    "nyc": "~8.4.0",
+    "nyc": "^8.4.0",
     "standard": "^10.0.3"
   },
   "directories": {

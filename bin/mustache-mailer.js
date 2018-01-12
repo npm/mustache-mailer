@@ -44,12 +44,12 @@ const mm = new MustacheMailer({
 })
 
 mm.message(argv.template)
-  .then(function (msg) {
+  .then(msg => {
     return msg.sendMail(argv.templateData)
   })
-  .then(function (data) {
+  .then(data => {
     console.log('message sent', data)
   })
-  .catch(function (err) {
+  .catch(err => {
     console.log(err.message)
   })

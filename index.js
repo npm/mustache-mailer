@@ -4,95 +4,94 @@ const Handlebars = require('handlebars')
 const handlebarsAsync = require('handlebars-async')
 const nodemailer = require('nodemailer')
 const path = require('path')
-const P = require('bluebird')
+const Promise = require('bluebird')
+
+const readFile = Promise.promisify(fs.readFile)
+const readdir = Promise.promisify(fs.readdir)
 
 handlebarsAsync(Handlebars)
 
 // the message objects returned by .message()
-function Message (transporter, templates) {
-  this.transporter = transporter
-  this.templates = templates
-}
-
-Message.prototype.sendMail = function sendMail (data, callback) {
-  const content = {}
-
-  const getRendered = this._expandTemplate(data, this.templates.html)
-  const getText = this._expandTemplate(data, this.templates.text)
-
-  const getMeta = this._expandTemplate(data, this.templates.meta)
-  .then((meta) => {
-    meta = meta ? JSON.parse(meta) : {}
-    Object.keys(meta).forEach(k => {
-      if (!meta[k]) delete meta[k]
+class Message {
+  constructor (transporter, templates) {
+    this.transporter = transporter
+    this.templates = {}
+    Object.keys(templates).forEach(key => {
+      this.templates[key] = Promise.promisify(templates[key])
     })
-    return meta
-  })
+  }
 
-  return P.join(getRendered, getMeta, getText, (rendered, meta, text) => {
+  async sendMail (data) {
+    const content = {}
+
+    const getRendered = this._expandTemplate(data, this.templates.html)
+    const getText = this._expandTemplate(data, this.templates.text)
+
+    const getMeta = this._expandTemplate(data, this.templates.meta)
+    .then((meta) => {
+      meta = meta ? JSON.parse(meta) : {}
+      Object.keys(meta).forEach(k => {
+        if (!meta[k]) delete meta[k]
+      })
+      return meta
+    })
+
+    const [rendered, meta, text] = await Promise.all([getRendered, getMeta, getText])
     content.text = text
     content.html = rendered
     var mail = Object.assign({}, content, data, meta)
 
-    var deferred = new P((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       this.transporter.sendMail(mail, (err, info) => {
         if (err) reject(err)
         else resolve(info)
       })
     })
-
-    return deferred
-  })
-  .nodeify(callback)
-}
-
-Message.prototype._expandTemplate = function (data, template) {
-  if (!template) return P.cast(null)
-
-  return new P((resolve, reject) => {
-    template(data, (err, content) => {
-      if (err) reject(err)
-      else resolve(content)
-    })
-  })
-}
-
-function MustacheMailer (opts) {
-  Object.assign(this, {
-    nodemailer: {}, // node-mailer initialization options.
-    transport: null, // the transport method, e.g., SES.
-    templateDir: './templates',
-    cache: {}
-  }, opts)
-
-  this.transporter = nodemailer.createTransport(this.transport)
-
-  // if we provide a helper for generating tokens, e.g.,
-  // email signup tokens, register the async helper.
-  if (!this.tokenFacilitator) return
-
-  Handlebars.registerHelper('tokenHelper', (data) => {
-    var done = this.async()
-    this.tokenFacilitator.generate(
-      _.omit(data.hash, ['prefix', 'ttl']),
-      _.pick(data.hash, ['prefix', 'ttl']),
-      done
-    )
-  })
-}
-
-MustacheMailer.prototype.message = function (name, cb) {
-  let templates = {}
-  let htmlPath
-  let metaPath
-  let textPath
-
-  if (this.cache[name]) {
-    return P.cast(this.cache[name]).nodeify(cb)
   }
 
-  return this._templateList()
-  .then(files => {
+  async _expandTemplate (data, template) {
+    if (!template) return Promise.resolve(null)
+    return template(data)
+  }
+}
+
+class MustacheMailer {
+  constructor (opts) {
+    Object.assign(this, {
+      nodemailer: {}, // node-mailer initialization options.
+      transport: null, // the transport method, e.g., SES.
+      templateDir: './templates',
+      cache: {}
+    }, opts)
+
+    this.transporter = nodemailer.createTransport(this.transport)
+
+    // if we provide a helper for generating tokens, e.g.,
+    // email signup tokens, register the async helper.
+    if (!this.tokenFacilitator) return
+
+    const _this = this
+    Handlebars.registerHelper('tokenHelper', function (data) {
+      var done = this.async()
+      _this.tokenFacilitator.generate(
+        _.omit(data.hash, ['prefix', 'ttl']),
+        _.pick(data.hash, ['prefix', 'ttl']),
+        done
+      )
+    })
+  }
+
+  async message (name) {
+    let templates = {}
+    let htmlPath
+    let metaPath
+    let textPath
+
+    if (this.cache[name]) {
+      return this.cache[name]
+    }
+
+    const files = await this._templateList()
     htmlPath = this._resolveTemplateFile(name + '.html.hbs', files)
     textPath = this._resolveTemplateFile(name + '.text.hbs', files)
     metaPath = this._resolveTemplateFile(name + '.meta.hbs', files)
@@ -101,9 +100,8 @@ MustacheMailer.prototype.message = function (name, cb) {
     const loadHTML = this._loadTemplate(htmlPath)
     const loadMeta = this._loadTemplate(metaPath)
 
-    return P.join(loadText, loadHTML, loadMeta)
-  })
-  .spread((textT, htmlT, metaT) => {
+    const [textT, htmlT, metaT] = await Promise.all([loadText, loadHTML, loadMeta])
+
     if (textT) templates.text = textT
     if (htmlT) templates.html = htmlT
     if (metaT) templates.meta = metaT
@@ -115,40 +113,25 @@ MustacheMailer.prototype.message = function (name, cb) {
     var message = new Message(this.transporter, templates)
     this.cache[name] = message
     return message
-  })
-  .nodeify(cb)
-}
+  }
 
-MustacheMailer.prototype._resolveTemplateFile = function (name, files) {
-  return files.indexOf(name) > -1 ? path.resolve(this.templateDir, name) : null
-}
+  _resolveTemplateFile (name, files) {
+    return files.includes(name) ? path.resolve(this.templateDir, name) : null
+  }
 
-MustacheMailer.prototype._loadTemplate = function (path) {
-  if (!path) return P.cast(null)
+  async _loadTemplate (path) {
+    if (!path) return Promise.cast(null)
 
-  return new P((resolve, reject) => {
-    fs.readFile(path, 'utf-8', (err, source) => {
-      if (err) reject(err)
-      else resolve(Handlebars.compile(source))
-    })
-  })
-}
+    const source = await readFile(path, 'utf-8')
 
-MustacheMailer.prototype._templateList = function () {
-  var _this = this
+    return Promise.promisify(Handlebars.compile(source))
+  }
 
-  return new P((resolve, reject) => {
-    fs.readdir(_this.templateDir, function (err, files) {
-      if (err) reject(err)
-      else {
-        resolve(
-        _.filter(files, function (f) {
-          return f.match(/\.hbs$/)
-        })
-      )
-      }
-    })
-  })
+  async _templateList () {
+    const files = await readdir(this.templateDir)
+
+    return files.filter(f => f.match(/\.hbs$/))
+  }
 }
 
 module.exports = MustacheMailer
