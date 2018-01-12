@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const argv = require('yargs')
 const MustacheMailer = require('../')
+const argv = require('yargs')
   .usage('$0 [options]')
   .option('o', {
     alias: 'transport-options',

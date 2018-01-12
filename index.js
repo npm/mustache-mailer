@@ -15,39 +15,27 @@ handlebarsAsync(Handlebars)
 class Message {
   constructor (transporter, templates) {
     this.transporter = transporter
-    this.templates = _.mapValues(templates, Promise.promisify)
+    this.templates = templates
+    this._sendMail = Promise.promisify(this.transporter.sendMail, {
+      context: this.transporter
+    })
   }
 
   async sendMail (data) {
-    const content = {}
-
-    const getRendered = this._expandTemplate(data, this.templates.html)
+    const getHtml = this._expandTemplate(data, this.templates.html)
     const getText = this._expandTemplate(data, this.templates.text)
-
     const getMeta = this._expandTemplate(data, this.templates.meta)
-    .then((meta) => {
-      meta = meta ? JSON.parse(meta) : {}
-      Object.keys(meta).forEach(k => {
-        if (!meta[k]) delete meta[k]
-      })
-      return meta
-    })
 
-    const [rendered, meta, text] = await Promise.all([getRendered, getMeta, getText])
-    content.text = text
-    content.html = rendered
-    var mail = Object.assign({}, content, data, meta)
+    const [html, metaStr, text] = await Promise.all([getHtml, getMeta, getText])
+    const meta = metaStr ? JSON.parse(metaStr) : {}
 
-    return new Promise((resolve, reject) => {
-      this.transporter.sendMail(mail, (err, info) => {
-        if (err) reject(err)
-        else resolve(info)
-      })
-    })
+    const mail = Object.assign({text, html}, data, _.pickBy(meta))
+
+    return this._sendMail(mail)
   }
 
   async _expandTemplate (data, template) {
-    if (!template) return Promise.resolve(null)
+    if (!template) return null
     return template(data)
   }
 }
@@ -69,7 +57,7 @@ class MustacheMailer {
 
     const _this = this
     Handlebars.registerHelper('tokenHelper', function (data) {
-      var done = this.async()
+      const done = this.async()
       _this.tokenFacilitator.generate(
         _.omit(data.hash, ['prefix', 'ttl']),
         _.pick(data.hash, ['prefix', 'ttl']),
@@ -79,8 +67,6 @@ class MustacheMailer {
   }
 
   async message (name) {
-    let templates = {}
-
     if (this.cache[name]) {
       return this.cache[name]
     }
@@ -90,12 +76,11 @@ class MustacheMailer {
     const textPath = this._resolveTemplateFile(name + '.text.hbs', files)
     const metaPath = this._resolveTemplateFile(name + '.meta.hbs', files)
 
-    const loadText = this._loadTemplate(textPath)
-    const loadHTML = this._loadTemplate(htmlPath)
-    const loadMeta = this._loadTemplate(metaPath)
+    const [textT, htmlT, metaT] = await Promise.map(
+      [textPath, htmlPath, metaPath],
+      this._loadTemplate)
 
-    const [textT, htmlT, metaT] = await Promise.all([loadText, loadHTML, loadMeta])
-
+    const templates = {}
     if (textT) templates.text = textT
     if (htmlT) templates.html = htmlT
     if (metaT) templates.meta = metaT
@@ -104,7 +89,7 @@ class MustacheMailer {
       throw new Error('template not found')
     }
 
-    var message = new Message(this.transporter, templates)
+    const message = new Message(this.transporter, templates)
     this.cache[name] = message
     return message
   }
@@ -114,7 +99,7 @@ class MustacheMailer {
   }
 
   async _loadTemplate (path) {
-    if (!path) return Promise.resolve(null)
+    if (!path) return null
 
     const source = await readFile(path, 'utf-8')
 
