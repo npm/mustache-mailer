@@ -1,7 +1,7 @@
 {
   "name": "mustache-mailer",
   "description": "send emails using nodemailer, and mustache templates.",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "author": "Ben Coe <ben@npmjs.com>",
   "bin": {
     "mustache-mailer": "./bin/mustache-mailer.js"
