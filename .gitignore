@@ -3,3 +3,4 @@ node_modules
 templates
 .nyc_output
 npm-debug.log
+coverage
