@@ -1,14 +1,14 @@
+'use strict'
+const handlebarsAsync = require('handlebars-async')
+const Handlebars = require('handlebars')
+const nodemailer = require('nodemailer')
+const Promise = require('bluebird')
+const path = require('path')
 const _ = require('lodash')
 const fs = require('fs')
-const Handlebars = require('handlebars')
-const handlebarsAsync = require('handlebars-async')
-const nodemailer = require('nodemailer')
-const path = require('path')
-const Promise = require('bluebird')
 
 const readFile = Promise.promisify(fs.readFile)
 const readdir = Promise.promisify(fs.readdir)
-
 handlebarsAsync(Handlebars)
 
 // the message objects returned by .message()
@@ -22,11 +22,11 @@ class Message {
   }
 
   async sendMail (data) {
-    const getHtml = this._expandTemplate(data, this.templates.html)
-    const getText = this._expandTemplate(data, this.templates.text)
-    const getMeta = this._expandTemplate(data, this.templates.meta)
-
-    const [html, metaStr, text] = await Promise.all([getHtml, getMeta, getText])
+    const [html, text, metaStr] = await Promise.all([
+      this._expandTemplate(data, this.templates.html),
+      this._expandTemplate(data, this.templates.text),
+      this._expandTemplate(data, this.templates.meta)
+    ])
     const meta = metaStr ? JSON.parse(metaStr) : {}
 
     const mail = Object.assign({text, html}, data, _.pickBy(meta))
