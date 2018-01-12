@@ -1,157 +1,154 @@
-var _ = require('lodash'),
-  fs = require('fs'),
-  Handlebars = require('handlebars'),
-  handlebarsAsync = require('handlebars-async'),
-  nodemailer = require('nodemailer'),
-  path = require('path'),
-  P = require('bluebird');
+const _ = require('lodash')
+const fs = require('fs')
+const Handlebars = require('handlebars')
+const handlebarsAsync = require('handlebars-async')
+const nodemailer = require('nodemailer')
+const path = require('path')
+const P = require('bluebird')
 
-handlebarsAsync(Handlebars);
+handlebarsAsync(Handlebars)
 
 // the message objects returned by .message()
-function Message(transporter, templates) {
-  this.transporter = transporter;
-  this.templates = templates;
+function Message (transporter, templates) {
+  this.transporter = transporter
+  this.templates = templates
 }
 
-Message.prototype.sendMail = function sendMail(data, callback) {
-  var content = {},
-    self = this;
+Message.prototype.sendMail = function sendMail (data, callback) {
+  const content = {}
 
-  const getRendered = this._expandTemplate(data, this.templates.html);
-  const getText = this._expandTemplate(data, this.templates.text);
+  const getRendered = this._expandTemplate(data, this.templates.html)
+  const getText = this._expandTemplate(data, this.templates.text)
 
   const getMeta = this._expandTemplate(data, this.templates.meta)
-  .then(function(meta) {
-      meta = meta ? JSON.parse(meta) : {};
-      Object.keys(meta).forEach(k => {
-        if (!meta[k]) delete meta[k];
-      });
-      return meta;
-  });
-
-  return P.join(getRendered, getMeta, getText, function renderTmpl(rendered, meta, text) {
-
-    content.text = text;
-    content.html = rendered;
-    var mail = Object.assign({}, content, data, meta);
-
-    var deferred = new P(function(resolve, reject) {
-      self.transporter.sendMail(mail, function(err, info) {
-        if (err) reject(err);
-        else resolve(info);
-      });
-    });
-
-    return deferred;
+  .then((meta) => {
+    meta = meta ? JSON.parse(meta) : {}
+    Object.keys(meta).forEach(k => {
+      if (!meta[k]) delete meta[k]
+    })
+    return meta
   })
-  .nodeify(callback);
+
+  return P.join(getRendered, getMeta, getText, (rendered, meta, text) => {
+    content.text = text
+    content.html = rendered
+    var mail = Object.assign({}, content, data, meta)
+
+    var deferred = new P((resolve, reject) => {
+      this.transporter.sendMail(mail, (err, info) => {
+        if (err) reject(err)
+        else resolve(info)
+      })
+    })
+
+    return deferred
+  })
+  .nodeify(callback)
 }
 
-Message.prototype._expandTemplate = function(data, template) {
-  if (!template) return P.cast(null);
+Message.prototype._expandTemplate = function (data, template) {
+  if (!template) return P.cast(null)
 
-  return new P(function(resolve, reject) {
-    template(data, function(err, content) {
-      if (err) reject(err);
-      else resolve(content);
-    });
-  });
-};
+  return new P((resolve, reject) => {
+    template(data, (err, content) => {
+      if (err) reject(err)
+      else resolve(content)
+    })
+  })
+}
 
-function MustacheMailer(opts) {
-  var _this = this;
-
+function MustacheMailer (opts) {
   Object.assign(this, {
     nodemailer: {}, // node-mailer initialization options.
     transport: null, // the transport method, e.g., SES.
     templateDir: './templates',
     cache: {}
-  }, opts);
+  }, opts)
 
-  this.transporter = nodemailer.createTransport(this.transport);
+  this.transporter = nodemailer.createTransport(this.transport)
 
   // if we provide a helper for generating tokens, e.g.,
   // email signup tokens, register the async helper.
-  if (this.tokenFacilitator) {
-    Handlebars.registerHelper('tokenHelper', function(data) {
-      var done = this.async();
-      _this.tokenFacilitator.generate(
-        _.omit(data.hash, ['prefix', 'ttl']),
-        _.pick(data.hash, ['prefix', 'ttl']),
-        done
-      );
-    });
-  }
+  if (!this.tokenFacilitator) return
+
+  Handlebars.registerHelper('tokenHelper', (data) => {
+    var done = this.async()
+    this.tokenFacilitator.generate(
+      _.omit(data.hash, ['prefix', 'ttl']),
+      _.pick(data.hash, ['prefix', 'ttl']),
+      done
+    )
+  })
 }
 
-MustacheMailer.prototype.message = function(name, cb) {
-  var _this = this,
-    templates = {},
-    htmlPath,
-    metaPath,
-    textPath;
+MustacheMailer.prototype.message = function (name, cb) {
+  let templates = {}
+  let htmlPath
+  let metaPath
+  let textPath
 
-  if (_this.cache[name]) {
-    return P.cast(_this.cache[name]).nodeify(cb);
+  if (this.cache[name]) {
+    return P.cast(this.cache[name]).nodeify(cb)
   }
 
   return this._templateList()
-  .then(function(files) {
-    htmlPath = _this._resolveTemplateFile(name + '.html.hbs', files);
-    textPath = _this._resolveTemplateFile(name + '.text.hbs', files);
-    metaPath = _this._resolveTemplateFile(name + '.meta.hbs', files);
+  .then(files => {
+    htmlPath = this._resolveTemplateFile(name + '.html.hbs', files)
+    textPath = this._resolveTemplateFile(name + '.text.hbs', files)
+    metaPath = this._resolveTemplateFile(name + '.meta.hbs', files)
 
-    const loadText = _this._loadTemplate(textPath);
-    const loadHTML = _this._loadTemplate(htmlPath);
-    const loadMeta = _this._loadTemplate(metaPath);
+    const loadText = this._loadTemplate(textPath)
+    const loadHTML = this._loadTemplate(htmlPath)
+    const loadMeta = this._loadTemplate(metaPath)
 
-    return P.join(loadText, loadHTML, loadMeta);
+    return P.join(loadText, loadHTML, loadMeta)
   })
-  .spread(function(textT, htmlT, metaT) {
-    if (textT) templates.text = textT;
-    if (htmlT) templates.html = htmlT;
-    if (metaT) templates.meta = metaT;
+  .spread((textT, htmlT, metaT) => {
+    if (textT) templates.text = textT
+    if (htmlT) templates.html = htmlT
+    if (metaT) templates.meta = metaT
 
     if (!templates.text && !templates.html) {
-      throw new Error('template not found');
+      throw new Error('template not found')
     }
 
-    var message = new Message(_this.transporter, templates);
-    _this.cache[name] = message;
-    return message;
+    var message = new Message(this.transporter, templates)
+    this.cache[name] = message
+    return message
   })
-  .nodeify(cb);
-};
+  .nodeify(cb)
+}
 
-MustacheMailer.prototype._resolveTemplateFile = function(name, files) {
-  return files.indexOf(name) > -1 ? path.resolve(this.templateDir, name) : null;
-};
+MustacheMailer.prototype._resolveTemplateFile = function (name, files) {
+  return files.indexOf(name) > -1 ? path.resolve(this.templateDir, name) : null
+}
 
-MustacheMailer.prototype._loadTemplate = function(path) {
-  if (!path) return P.cast(null);
+MustacheMailer.prototype._loadTemplate = function (path) {
+  if (!path) return P.cast(null)
 
-  return new P(function(resolve, reject) {
-    fs.readFile(path, 'utf-8', function(err, source) {
-      if (err) reject(err);
-      else resolve(Handlebars.compile(source));
-    });
-  });
-};
+  return new P((resolve, reject) => {
+    fs.readFile(path, 'utf-8', (err, source) => {
+      if (err) reject(err)
+      else resolve(Handlebars.compile(source))
+    })
+  })
+}
 
-MustacheMailer.prototype._templateList = function() {
-  var _this = this;
+MustacheMailer.prototype._templateList = function () {
+  var _this = this
 
-  return new P(function(resolve, reject) {
-    fs.readdir(_this.templateDir, function(err, files) {
-      if (err) reject(err);
-      else resolve(
-        _.filter(files, function(f) {
-          return f.match(/\.hbs$/);
+  return new P((resolve, reject) => {
+    fs.readdir(_this.templateDir, function (err, files) {
+      if (err) reject(err)
+      else {
+        resolve(
+        _.filter(files, function (f) {
+          return f.match(/\.hbs$/)
         })
-      );
-    });
-  });
-};
+      )
+      }
+    })
+  })
+}
 
-module.exports = MustacheMailer;
+module.exports = MustacheMailer

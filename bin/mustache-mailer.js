@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-var argv = require('yargs')
+const argv = require('yargs')
+const MustacheMailer = require('../')
   .usage('$0 [options]')
   .option('o', {
     alias: 'transport-options',
@@ -13,7 +14,7 @@ var argv = require('yargs')
   })
   .option('d', {
     alias: 'template-data',
-    description: "data for mail template, e.g., o.to; o.from"
+    description: 'data for mail template, e.g., o.to; o.from'
   })
   .option('n', {
     demand: true,
@@ -30,25 +31,25 @@ var argv = require('yargs')
   })
   .help('h')
   .example('$0 -o.accessKeyId=key -o.secretAccessKey=secret -d.to=bencoe@example.com -t ses --template=test')
-  .check(function(argv) {
-    if (typeof argv.o !== 'object') throw 'transport options must be an object';
-    if (typeof argv.d !== 'object') throw 'template data must be an object';
-    return true;
+  .check(function (argv) {
+    if (typeof argv.o !== 'object') throw new Error('transport options must be an object')
+    if (typeof argv.d !== 'object') throw new Error('template data must be an object')
+    return true
   })
-  .argv,
-  MustacheMailer = require('../'),
-  mm = new MustacheMailer({
-    transport: require('nodemailer-' + argv.transport + '-transport')(argv.transportOptions),
-    templateDir: argv.templateDir
-  });
+  .argv
+
+const mm = new MustacheMailer({
+  transport: require(`nodemailer-${argv.transport}-transport`)(argv.transportOptions),
+  templateDir: argv.templateDir
+})
 
 mm.message(argv.template)
-  .then(function(msg) {
-    return msg.sendMail(argv.templateData);
+  .then(function (msg) {
+    return msg.sendMail(argv.templateData)
   })
-  .then(function(data) {
-    console.log('message sent', data);
+  .then(function (data) {
+    console.log('message sent', data)
   })
-  .catch(function(err) {
-    console.log(err.message);
-  });
+  .catch(function (err) {
+    console.log(err.message)
+  })
