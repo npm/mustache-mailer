@@ -15,10 +15,7 @@ handlebarsAsync(Handlebars)
 class Message {
   constructor (transporter, templates) {
     this.transporter = transporter
-    this.templates = {}
-    Object.keys(templates).forEach(key => {
-      this.templates[key] = Promise.promisify(templates[key])
-    })
+    this.templates = _.mapValues(templates, Promise.promisify)
   }
 
   async sendMail (data) {
@@ -83,18 +80,15 @@ class MustacheMailer {
 
   async message (name) {
     let templates = {}
-    let htmlPath
-    let metaPath
-    let textPath
 
     if (this.cache[name]) {
       return this.cache[name]
     }
 
-    const files = await this._templateList()
-    htmlPath = this._resolveTemplateFile(name + '.html.hbs', files)
-    textPath = this._resolveTemplateFile(name + '.text.hbs', files)
-    metaPath = this._resolveTemplateFile(name + '.meta.hbs', files)
+    const files = await readdir(this.templateDir).filter(f => f.match(/\.hbs$/))
+    const htmlPath = this._resolveTemplateFile(name + '.html.hbs', files)
+    const textPath = this._resolveTemplateFile(name + '.text.hbs', files)
+    const metaPath = this._resolveTemplateFile(name + '.meta.hbs', files)
 
     const loadText = this._loadTemplate(textPath)
     const loadHTML = this._loadTemplate(htmlPath)
@@ -120,17 +114,11 @@ class MustacheMailer {
   }
 
   async _loadTemplate (path) {
-    if (!path) return Promise.cast(null)
+    if (!path) return Promise.resolve(null)
 
     const source = await readFile(path, 'utf-8')
 
     return Promise.promisify(Handlebars.compile(source))
-  }
-
-  async _templateList () {
-    const files = await readdir(this.templateDir)
-
-    return files.filter(f => f.match(/\.hbs$/))
   }
 }
 
