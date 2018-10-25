@@ -104,6 +104,40 @@ describe('MustacheMailer', function () {
       mock.sentMail[0].data.text.should.match(/Hello dalek great to meet you.\n/)
     })
 
+    it('disables HTML escaping for text emails', async () => {
+      var mock = MockTransport()
+
+      var mm = new MustacheMailer({
+        transport: mock,
+        templateDir: path.resolve(__dirname, './fixtures')
+      })
+
+      const msg = await mm.message('foo')
+      await msg.sendMail({
+        to: 'dalek@example.com',
+        fname: 'Peter O\'Hanraha-hanrahan'
+      })
+
+      mock.sentMail[0].data.from.should.match(/Peter O\'Hanraha-hanrahan/)
+    })
+
+    it('disables HTML escaping for mail metadata', async () => {
+      var mock = MockTransport()
+
+      var mm = new MustacheMailer({
+        transport: mock,
+        templateDir: path.resolve(__dirname, './fixtures')
+      })
+
+      const msg = await mm.message('foo')
+      await msg.sendMail({
+        to: 'dalek@example.com',
+        fname: 'Peter O\'Hanraha-hanrahan'
+      })
+
+      mock.sentMail[0].data.text.should.match(/Hello Peter O\'Hanraha-hanrahan great to meet you.\n/)
+    })
+
     it('handles sending message from cache', async () => {
       var mock = MockTransport()
 

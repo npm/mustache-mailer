@@ -76,9 +76,11 @@ class MustacheMailer {
     const textPath = this._resolveTemplateFile(name + '.text.hbs', files)
     const metaPath = this._resolveTemplateFile(name + '.meta.hbs', files)
 
-    const [textT, htmlT, metaT] = await Promise.map(
-      [textPath, htmlPath, metaPath],
-      this._loadTemplate)
+    const [textT, htmlT, metaT] = await Promise.all([
+      this._loadTemplate(textPath, {noEscape: true}),
+      this._loadTemplate(htmlPath),
+      this._loadTemplate(metaPath, {noEscape: true})
+    ])
 
     const templates = {}
     if (textT) templates.text = textT
@@ -98,12 +100,12 @@ class MustacheMailer {
     return files.includes(name) ? path.resolve(this.templateDir, name) : null
   }
 
-  async _loadTemplate (path) {
+  async _loadTemplate (path, options = {}) {
     if (!path) return null
 
     const source = await readFile(path, 'utf-8')
 
-    return Promise.promisify(Handlebars.compile(source))
+    return Promise.promisify(Handlebars.compile(source, options))
   }
 }
 
